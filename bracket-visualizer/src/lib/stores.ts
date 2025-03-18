@@ -163,7 +163,9 @@ const createBracketStore = () => {
     allTeams: teams,
     isGenerating: false,
     currentRound: 0,
-    currentGame: 0
+    currentGame: 0,
+    pendingGameIndices: [] as number[], // Tracks which games still need to be played in current round
+    activeGameIndex: -1 // Currently active game being decided
   });
   
   return {
@@ -206,7 +208,22 @@ const createBracketStore = () => {
     
     generateBracket: () => {
       update(state => {
-        return { ...state, isGenerating: true, currentRound: 0, currentGame: 0 };
+        // Initialize with all games in first round as pending
+        const pendingGameIndices = Array.from({ length: state.rounds[0].games.length }, (_, i) => i);
+        // Shuffle the order
+        shuffleArray(pendingGameIndices);
+        
+        // Pick the first game to process
+        const activeGameIndex = pendingGameIndices.pop() || 0;
+        
+        return { 
+          ...state, 
+          isGenerating: true, 
+          currentRound: 0, 
+          currentGame: activeGameIndex,
+          pendingGameIndices,
+          activeGameIndex
+        };
       });
     },
     
@@ -216,10 +233,10 @@ const createBracketStore = () => {
         
         let newState = { ...state };
         const currentRound = state.currentRound;
-        const currentGame = state.currentGame;
+        const currentGame = state.activeGameIndex;
         
-        // Check if we've already completed the bracket
-        if (state.rounds[currentRound] == undefined || (currentRound >= state.rounds.length && currentGame >= state.rounds[currentRound].games.length - 1)) {
+        // Check if the current round exists
+        if (!state.rounds[currentRound]) {
           return { ...state, isGenerating: false };
         }
         
@@ -243,20 +260,26 @@ const createBracketStore = () => {
             );
             
             if (prevRound) {
-              const gameIndex = currentGame * 2;
+              // For randomized order, we need to map the game indices correctly
+              // The activeGameIndex is the randomized index in the current round
+              const gameIdx = currentGame;
               
-              if (gameIndex + 1 < prevRound.games.length) {
-                const team1 = prevRound.games[gameIndex].winner;
-                const team2 = prevRound.games[gameIndex + 1].winner;
+              // Calculate which two games from the previous round feed into this game
+              const prevGameIdx1 = gameIdx * 2;
+              const prevGameIdx2 = gameIdx * 2 + 1;
+              
+              if (prevGameIdx2 < prevRound.games.length) {
+                const team1 = prevRound.games[prevGameIdx1].winner;
+                const team2 = prevRound.games[prevGameIdx2].winner;
                 
                 if (team1 && team2) {
                   const game = {
-                    ...state.rounds[currentRound].games[currentGame],
+                    ...state.rounds[currentRound].games[gameIdx],
                     team1,
                     team2
                   };
                   
-                  newState.rounds[currentRound].games[currentGame] = {
+                  newState.rounds[currentRound].games[gameIdx] = {
                     ...game,
                     winner: getWinner(game)
                   };
@@ -264,49 +287,7 @@ const createBracketStore = () => {
               }
             }
           } else if (round.position === 'center') {
-            if (round.name === 'Final Four') {
-              // Final Four gets winners from Elite Eight rounds
-              const leftEliteEight = state.rounds.find(r => r.name === 'Elite Eight (Left)');
-              const rightEliteEight = state.rounds.find(r => r.name === 'Elite Eight (Right)');
-              
-              if (leftEliteEight && rightEliteEight) {
-                if (currentGame === 0 && leftEliteEight.games[0].winner) {
-                  // First game in Final Four
-                  const team1 = leftEliteEight.games[0].winner;
-                  const team2 = leftEliteEight.games[1]?.winner || null;
-                  
-                  if (team1 && team2) {
-                    const game = {
-                      ...state.rounds[currentRound].games[currentGame],
-                      team1,
-                      team2
-                    };
-                    
-                    newState.rounds[currentRound].games[currentGame] = {
-                      ...game,
-                      winner: getWinner(game)
-                    };
-                  }
-                } else if (currentGame === 1 && rightEliteEight.games[0].winner) {
-                  // Second game in Final Four
-                  const team1 = rightEliteEight.games[0].winner;
-                  const team2 = rightEliteEight.games[1]?.winner || null;
-                  
-                  if (team1 && team2) {
-                    const game = {
-                      ...state.rounds[currentRound].games[currentGame],
-                      team1,
-                      team2
-                    };
-                    
-                    newState.rounds[currentRound].games[currentGame] = {
-                      ...game,
-                      winner: getWinner(game)
-                    };
-                  }
-                }
-              }
-            } else if (round.name === 'Championship') {
+            if (round.name === 'Championship') {
               // Championship gets winners from Final Four
               const finalFourLeft = state.rounds.find(r => r.name === 'Final Four (Left)');
               const finalFourRight = state.rounds.find(r => r.name === 'Final Four (Right)');
@@ -330,14 +311,34 @@ const createBracketStore = () => {
           }
         }
         
-        // Advance to next game or round
-        if (currentGame < state.rounds[currentRound].games.length - 1) {
-          newState.currentGame = currentGame + 1;
-        } else if (currentRound < state.rounds.length) {
-          newState.currentRound = currentRound + 1;
-          newState.currentGame = 0;
+        // Check if we have more games in this round
+        if (state.pendingGameIndices.length > 0) {
+          // Pick the next game randomly from the remaining games
+          const activeGameIndex = state.pendingGameIndices.pop() || 0;
+          newState.activeGameIndex = activeGameIndex;
+          newState.currentGame = activeGameIndex; // For UI display purposes
         } else {
-          newState.isGenerating = false; // Done generating
+          // Move to next round
+          const nextRound = currentRound + 1;
+          
+          // Check if we've completed all rounds
+          if (nextRound >= state.rounds.length) {
+            return { ...state, isGenerating: false };
+          }
+          
+          // Initialize next round with all games
+          const nextRoundGames = state.rounds[nextRound].games;
+          const pendingGameIndices = Array.from({ length: nextRoundGames.length }, (_, i) => i);
+          // Shuffle the order
+          shuffleArray(pendingGameIndices);
+          
+          // Pick the first game to process
+          const activeGameIndex = pendingGameIndices.pop() || 0;
+          
+          newState.currentRound = nextRound;
+          newState.pendingGameIndices = pendingGameIndices;
+          newState.activeGameIndex = activeGameIndex;
+          newState.currentGame = activeGameIndex; // For UI display
         }
         
         return newState;
@@ -374,17 +375,28 @@ const createBracketStore = () => {
           rounds: resetRounds,
           isGenerating: false,
           currentRound: 0,
-          currentGame: 0
+          currentGame: 0,
+          pendingGameIndices: [],
+          activeGameIndex: -1
         };
       });
     }
   };
 };
 
+// Fisher-Yates shuffle algorithm to randomize game order
+function shuffleArray(array: number[]): void {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
 function getPreviousRoundName(roundName: string): string {
   if (roundName.includes('Second Round')) return 'First Round';
   if (roundName.includes('Sweet 16')) return 'Second Round';
   if (roundName.includes('Elite Eight')) return 'Sweet 16';
+  if (roundName.includes('Final Four')) return 'Elite Eight';
   return '';
 }
 

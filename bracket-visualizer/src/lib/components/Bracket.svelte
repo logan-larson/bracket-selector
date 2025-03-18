@@ -4,7 +4,7 @@
   import Round from './Round.svelte';
   
   let interval: number | null = null;
-  let generationSpeed = 100; // ms between games
+  let generationSpeed = 350; // ms between games
 
   function startGeneration() {
     bracketStore.generateBracket();
@@ -18,6 +18,14 @@
   $: if (!$bracketStore.isGenerating && interval !== null) {
     clearInterval(interval);
     interval = null;
+  }
+  
+  // Watch for speed changes during generation
+  $: if (interval !== null && $bracketStore.isGenerating) {
+    clearInterval(interval);
+    interval = window.setInterval(() => {
+      bracketStore.advanceGeneration();
+    }, generationSpeed);
   }
   
   function resetBracket() {
@@ -39,6 +47,12 @@
   $: leftRounds = $bracketStore.rounds.filter(round => round.position === 'left');
   $: rightRounds = $bracketStore.rounds.filter(round => round.position === 'right');
   $: centerRounds = $bracketStore.rounds.filter(round => round.position === 'center');
+  
+  // Convert speed value to descriptive text
+  $: speedLabel = generationSpeed <= 100 ? 'Very Fast' : 
+                  generationSpeed <= 250 ? 'Fast' : 
+                  generationSpeed <= 500 ? 'Medium' :
+                  generationSpeed <= 750 ? 'Slow' : 'Very Slow';
 </script>
 
 <div class="bracket-container">
@@ -50,18 +64,25 @@
       Reset
     </button>
     <div class="speed-control">
-      <label for="speed">Generation Speed:</label>
+      <label for="speed">Speed:</label>
       <input 
         type="range" 
         id="speed" 
         min="100" 
         max="1000" 
-        step="100" 
+        step="50" 
         bind:value={generationSpeed}
         disabled={$bracketStore.isGenerating}
       />
-      <span>{generationSpeed}ms</span>
+      <span class="speed-label">{speedLabel}</span>
     </div>
+    
+    {#if $bracketStore.isGenerating}
+      <div class="generation-status">
+        <div class="progress-indicator"></div>
+        <span>Generating Round: {$bracketStore.rounds[$bracketStore.currentRound]?.name || ''}</span>
+      </div>
+    {/if}
   </div>
   
   <div class="bracket">
@@ -123,6 +144,7 @@
     background-color: white;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    flex-wrap: wrap;
   }
   
   .speed-control {
@@ -130,6 +152,44 @@
     align-items: center;
     gap: 8px;
     margin-left: auto;
+  }
+  
+  .speed-label {
+    min-width: 70px;
+    text-align: left;
+    font-size: 14px;
+    color: var(--primary-color);
+    font-weight: 500;
+  }
+  
+  .generation-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 16px;
+    font-size: 14px;
+    color: var(--secondary-color);
+    animation: pulse 2s infinite;
+  }
+  
+  .progress-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: var(--secondary-color);
+    animation: blink 1s infinite;
+  }
+  
+  @keyframes pulse {
+    0% { opacity: 0.7; }
+    50% { opacity: 1; }
+    100% { opacity: 0.7; }
+  }
+  
+  @keyframes blink {
+    0% { transform: scale(0.8); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(0.8); }
   }
   
   .bracket {

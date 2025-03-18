@@ -16,7 +16,8 @@
     {#each round.games as game, index}
       <Game 
         {game} 
-        isAnimating={isCurrentRound && index === currentGameIndex && game.winner !== null} 
+        isAnimating={isCurrentRound && index === currentGameIndex && game.winner !== null}
+        isActive={isCurrentRound && index === currentGameIndex}
         {side}
       />
     {/each}

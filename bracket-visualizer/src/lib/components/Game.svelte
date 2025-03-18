@@ -5,9 +5,14 @@
   export let game: GameType;
   export let isAnimating: boolean = false;
   export let side: 'left' | 'right' | 'center' = 'left';
+  export let isActive: boolean = false;
 </script>
 
-<div class="game" id={game.id} class:left={side === 'right'} class:right={side === 'left'} class:center={side === 'center'}>
+<div class="game" id={game.id} 
+  class:left={side === 'left'} 
+  class:right={side === 'right'} 
+  class:center={side === 'center'}
+  class:active={isActive}>
   <div class="teams">
     <Team 
       team={game.team1} 
@@ -36,6 +41,16 @@
     padding: 4px;
     margin: 8px 0;
     width: 190px;
+    transition: all 0.3s ease;
+  }
+  
+  .active {
+    transform: scale(1.05);
+    z-index: 10;
+  }
+  
+  .active .teams {
+    box-shadow: 0 0 8px rgba(255, 199, 44, 0.8);
   }
   
   .teams {
@@ -44,6 +59,7 @@
     gap: 4px;
     position: relative;
     z-index: 1;
+    transition: box-shadow 0.3s ease;
   }
   
   .connector-wrapper {
