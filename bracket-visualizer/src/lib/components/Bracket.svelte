@@ -4,7 +4,7 @@
   import Round from './Round.svelte';
   
   let interval: number | null = null;
-  let generationSpeed = 500; // ms between games
+  let generationSpeed = 100; // ms between games
 
   function startGeneration() {
     bracketStore.generateBracket();
@@ -34,6 +34,11 @@
       clearInterval(interval);
     }
   });
+  
+  // Group rounds by position
+  $: leftRounds = $bracketStore.rounds.filter(round => round.position === 'left');
+  $: rightRounds = $bracketStore.rounds.filter(round => round.position === 'right');
+  $: centerRounds = $bracketStore.rounds.filter(round => round.position === 'center');
 </script>
 
 <div class="bracket-container">
@@ -60,13 +65,44 @@
   </div>
   
   <div class="bracket">
-    {#each $bracketStore.rounds as round, i}
-      <Round 
-        {round} 
-        isCurrentRound={i === $bracketStore.currentRound}
-        currentGameIndex={$bracketStore.currentGame}
-      />
-    {/each}
+    <!-- Left side rounds -->
+    <div class="bracket-side left-side">
+      {#each leftRounds as round, i}
+        {@const roundIndex = $bracketStore.rounds.findIndex(r => r.name === round.name)}
+        <Round 
+          {round} 
+          isCurrentRound={roundIndex === $bracketStore.currentRound}
+          currentGameIndex={$bracketStore.currentGame}
+          side="left"
+        />
+      {/each}
+    </div>
+    
+    <!-- Center rounds (Final Four & Championship) -->
+    <div class="bracket-center">
+      {#each centerRounds as round, i}
+        {@const roundIndex = $bracketStore.rounds.findIndex(r => r.name === round.name)}
+        <Round 
+          {round} 
+          isCurrentRound={roundIndex === $bracketStore.currentRound}
+          currentGameIndex={$bracketStore.currentGame}
+          side="center"
+        />
+      {/each}
+    </div>
+    
+    <!-- Right side rounds -->
+    <div class="bracket-side right-side">
+      {#each rightRounds as round, i}
+        {@const roundIndex = $bracketStore.rounds.findIndex(r => r.name === round.name)}
+        <Round 
+          {round} 
+          isCurrentRound={roundIndex === $bracketStore.currentRound}
+          currentGameIndex={$bracketStore.currentGame}
+          side="right"
+        />
+      {/each}
+    </div>
   </div>
 </div>
 
@@ -98,11 +134,34 @@
   
   .bracket {
     display: flex;
-    gap: 40px;
     padding: 20px;
     background-color: white;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     overflow-x: auto;
+    justify-content: center;
+    gap: 10px;
+  }
+  
+  .bracket-side {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .left-side {
+    flex-direction: row;
+  }
+  
+  .right-side {
+    flex-direction: row-reverse; /* Reverse to make games flow toward center */
+  }
+  
+  .bracket-center {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0 10px;
+    min-width: 220px;
   }
 </style> 

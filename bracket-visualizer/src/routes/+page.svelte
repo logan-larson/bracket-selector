@@ -14,48 +14,51 @@
     <p>Visualize your March Madness bracket and generate results.</p>
   </header>
   
-  <div class="content">
-    <div class="bracket-section">
-      <Bracket />
-    </div>
-    
-    <div class="team-section">
-      <TeamEditor teams={$bracketStore.allTeams} />
-    </div>
+  <div class="bracket-section">
+    <Bracket />
+  </div>
+  
+  <div class="team-section">
+    <TeamEditor teams={$bracketStore.allTeams} />
   </div>
 </main>
 
 <style>
   main {
-    max-width: 1600px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 10px;
+    max-width: 100%;
   }
   
   header {
     text-align: center;
-    margin-bottom: 32px;
+    margin-bottom: 24px;
   }
   
   h1 {
     color: var(--primary-color);
-    font-size: 32px;
+    font-size: 28px;
     margin-bottom: 8px;
-  }
-  
-  .content {
-    display: flex;
-    gap: 20px;
-    flex-direction: column;
   }
   
   .bracket-section {
     overflow-x: auto;
+    margin-bottom: 24px;
   }
   
-  @media (max-width: 1200px) {
-    .content {
-      grid-template-columns: 1fr;
+  .team-section {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  
+  @media (min-width: 1600px) {
+    main {
+      padding: 20px;
+    }
+    
+    .bracket-section {
+      margin-bottom: 32px;
     }
   }
 </style>

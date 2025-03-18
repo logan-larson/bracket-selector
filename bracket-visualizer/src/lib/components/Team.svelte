@@ -26,16 +26,16 @@
   .team {
     display: flex;
     align-items: center;
-    padding: 8px;
+    padding: 6px;
     border-radius: 4px;
     background-color: white;
     border: 1px solid var(--border-color);
     margin: 2px 0;
-    height: 40px;
-    width: 200px;
+    height: 34px;
+    width: 180px;
     transition: all 0.2s ease;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    gap: 8px;
+    gap: 6px;
     overflow: hidden;
   }
   
@@ -49,12 +49,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 24px;
-    height: 24px;
+    min-width: 20px;
+    height: 20px;
     background-color: var(--primary-color);
     color: white;
     border-radius: 50%;
-    font-size: 12px;
+    font-size: 10px;
     font-weight: bold;
   }
   
@@ -67,7 +67,7 @@
   }
   
   .name {
-    font-size: 14px;
+    font-size: 12px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -86,11 +86,11 @@
   }
   
   .image-container {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
     overflow: hidden;
     border-radius: 50%;
-    margin-left: 8px;
+    margin-left: 6px;
   }
   
   .image-container img {

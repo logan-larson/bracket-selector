@@ -5,15 +5,19 @@
   export let round: RoundType;
   export let isCurrentRound: boolean = false;
   export let currentGameIndex: number = -1;
+  export let side: 'left' | 'right' | 'center' = 'left';
+  
+  $: roundName = round.name.replace(/ \(Left\)| \(Right\)/g, '');
 </script>
 
-<div class="round">
-  <h3 class="round-title">{round.name}</h3>
+<div class="round" class:left={side === 'left'} class:right={side === 'right'} class:center={side === 'center'}>
+  <h3 class="round-title">{roundName}</h3>
   <div class="games">
     {#each round.games as game, index}
       <Game 
         {game} 
         isAnimating={isCurrentRound && index === currentGameIndex && game.winner !== null} 
+        {side}
       />
     {/each}
   </div>
@@ -23,7 +27,8 @@
   .round {
     display: flex;
     flex-direction: column;
-    min-width: 240px;
+    min-width: 180px;
+    margin: 0 6px;
   }
   
   .round-title {
@@ -40,7 +45,17 @@
     gap: 20px;
   }
   
-  /* Adjust spacing for each round */
+  /* Left side rounds */
+  .left .games {
+    align-items: flex-end;
+  }
+  
+  /* Right side rounds */
+  .right .games {
+    align-items: flex-start;
+  }
+  
+  /* Adjust spacing for different rounds */
   :global(.round:nth-child(2) .games) {
     padding-top: 24px;
   }
@@ -55,12 +70,19 @@
     gap: 209px;
   }
   
-  :global(.round:nth-child(5) .games) {
-    padding-top: 386px;
-    gap: 462px;
+  /* Championship */
+  .center .games {
+    justify-content: center;
   }
   
-  :global(.round:nth-child(6) .games) {
-    padding-top: 606px;
+  /* Final Four */
+  :global(.bracket-center > :first-child .games) {
+    padding-top: 160px;
+    gap: 260px;
+  }
+  
+  /* Championship */
+  :global(.bracket-center > :last-child .games) {
+    padding-top: 290px;
   }
 </style> 

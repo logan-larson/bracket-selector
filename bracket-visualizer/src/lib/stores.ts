@@ -17,10 +17,11 @@ export interface Game {
 export interface Round {
   name: string;
   games: Game[];
+  position: 'left' | 'right' | 'center';
 }
 
 const createBracketStore = () => {
-  const regions = ["East", "West", "South", "Midwest"];
+  const regions = ["South", "West", "East", "Midwest"];
   const teams: Team[] = [];
   
   regions.forEach(region => {
@@ -31,50 +32,128 @@ const createBracketStore = () => {
   
   // Initialize rounds with empty games
   const initialRounds: Round[] = [
-    { name: 'First Round', games: [] },
-    { name: 'Second Round', games: [] },
-    { name: 'Sweet 16', games: [] },
-    { name: 'Elite Eight', games: [] },
-    { name: 'Final Four', games: [] },
-    { name: 'Championship', games: [] }
+    { name: 'First Round (Left)', games: [], position: 'left' },
+    { name: 'First Round (Right)', games: [], position: 'right' },
+    { name: 'Second Round (Left)', games: [], position: 'left' },
+    { name: 'Second Round (Right)', games: [], position: 'right' },
+    { name: 'Sweet 16 (Left)', games: [], position: 'left' },
+    { name: 'Sweet 16 (Right)', games: [], position: 'right' },
+    { name: 'Elite Eight (Left)', games: [], position: 'left' },
+    { name: 'Elite Eight (Right)', games: [], position: 'right' },
+    { name: 'Final Four', games: [], position: 'center' },
+    { name: 'Championship', games: [], position: 'center' }
   ];
+
+  // Set up first round games - left side (first two regions)
+  const leftRegions = [teams.filter(t => t.region === regions[0]), teams.filter(t => t.region === regions[1])];
+  let gameId = 0;
   
-  // Setup first round games
-  for (let i = 0; i < 32; i++) {
-    let offset = Math.floor(i / 8);
-    
-    let team1Index = i + (offset * 8);
-    let team2Index = (15 + (offset * 16)) - (i - (offset * 8));
-    
-    initialRounds[0].games.push({
-      id: `first-${i}`,
-      team1: teams[team1Index],
-      team2: teams[team2Index],
-      winner: null
-    });
-  }
+  leftRegions.forEach((regionTeams, regionIdx) => {
+    for (let i = 0; i < 8; i++) {
+      const team1 = regionTeams[i];
+      const team2 = regionTeams[15 - i];
+      
+      initialRounds[0].games.push({
+        id: `first-left-${gameId}`,
+        team1,
+        team2,
+        winner: null
+      });
+      gameId++;
+    }
+  });
   
-  // Reordering per the original algorithm
-  for (let offset = 0; offset < 4; offset++) {
+  // Reorder games as per original algorithm for left side
+  for (let offset = 0; offset < 2; offset++) {
     let o = offset * 8;
     swapGames(initialRounds[0].games, 1 + o, 7 + o);
     swapGames(initialRounds[0].games, 2 + o, 5 + o);
     swapGames(initialRounds[0].games, 4 + o, 2 + o);
   }
   
-  // Setup empty games for other rounds
-  const gameCounts = [16, 8, 4, 2, 1];
+  // Set up first round games - right side (second two regions)
+  const rightRegions = [teams.filter(t => t.region === regions[2]), teams.filter(t => t.region === regions[3])];
+  gameId = 0;
   
-  for (let round = 1; round < initialRounds.length; round++) {
-    for (let i = 0; i < gameCounts[round-1]; i++) {
+  rightRegions.forEach((regionTeams, regionIdx) => {
+    for (let i = 0; i < 8; i++) {
+      const team1 = regionTeams[i];
+      const team2 = regionTeams[15 - i];
+      
+      initialRounds[1].games.push({
+        id: `first-right-${gameId}`,
+        team1,
+        team2,
+        winner: null
+      });
+      gameId++;
+    }
+  });
+  
+  // Reorder games as per original algorithm for right side
+  for (let offset = 0; offset < 2; offset++) {
+    let o = offset * 8;
+    swapGames(initialRounds[1].games, 1 + o, 7 + o);
+    swapGames(initialRounds[1].games, 2 + o, 5 + o);
+    swapGames(initialRounds[1].games, 4 + o, 2 + o);
+  }
+  
+  // Setup empty games for later rounds
+  // Left side (Second Round, Sweet 16, Elite Eight)
+  for (let round = 2; round <= 6; round += 2) {
+    const prevGamesCount = initialRounds[round-2].games.length;
+    const gamesCount = prevGamesCount / 2;
+    
+    for (let i = 0; i < gamesCount; i++) {
       initialRounds[round].games.push({
-        id: `${initialRounds[round].name}-${i}`.toLowerCase().replace(' ', '-'),
+        id: `${initialRounds[round].name.toLowerCase().replace(/\s/g, '-')}-${i}`,
         team1: null,
         team2: null,
         winner: null
       });
     }
   }
+  
+  // Right side (Second Round, Sweet 16, Elite Eight)
+  for (let round = 3; round <= 7; round += 2) {
+    const prevGamesCount = initialRounds[round-2].games.length;
+    const gamesCount = prevGamesCount / 2;
+    
+    for (let i = 0; i < gamesCount; i++) {
+      initialRounds[round].games.push({
+        id: `${initialRounds[round].name.toLowerCase().replace(/\s/g, '-')}-${i}`,
+        team1: null,
+        team2: null,
+        winner: null
+      });
+    }
+  }
+  
+  // Final Four (2 games)
+  initialRounds[8].games = [
+    {
+      id: 'final-four-0',
+      team1: null,
+      team2: null,
+      winner: null
+    },
+    {
+      id: 'final-four-1',
+      team1: null,
+      team2: null,
+      winner: null
+    }
+  ];
+  
+  // Championship (1 game)
+  initialRounds[9].games = [
+    {
+      id: 'championship',
+      team1: null,
+      team2: null,
+      winner: null
+    }
+  ];
   
   const { subscribe, update } = writable({
     rounds: initialRounds,
@@ -138,12 +217,12 @@ const createBracketStore = () => {
         
         // Check if we've already completed the bracket
         if (currentRound >= state.rounds.length - 1 && 
-            currentGame >= state.rounds[currentRound].games.length) {
+            currentGame >= state.rounds[currentRound].games.length - 1) {
           return { ...state, isGenerating: false };
         }
         
         // Process the current game
-        if (currentRound === 0) {
+        if (currentRound <= 1) { // First rounds (left and right)
           // First round games already have teams assigned, just determine winner
           const game = state.rounds[currentRound].games[currentGame];
           newState.rounds[currentRound].games[currentGame] = {
@@ -152,24 +231,98 @@ const createBracketStore = () => {
           };
         } else {
           // For later rounds, we need to get teams from previous round winners
-          const prevRound = state.rounds[currentRound - 1];
-          const gameIndex = currentGame * 2;
+          const round = state.rounds[currentRound];
           
-          if (gameIndex + 1 < prevRound.games.length) {
-            const team1 = prevRound.games[gameIndex].winner;
-            const team2 = prevRound.games[gameIndex + 1].winner;
+          if (round.position === 'left' || round.position === 'right') {
+            // Find the correct previous round
+            const prevRound = state.rounds.find(r => 
+              r.position === round.position && 
+              r.name.includes(getPreviousRoundName(round.name))
+            );
             
-            if (team1 && team2) {
-              const game = {
-                ...state.rounds[currentRound].games[currentGame],
-                team1,
-                team2
-              };
+            if (prevRound) {
+              const gameIndex = currentGame * 2;
               
-              newState.rounds[currentRound].games[currentGame] = {
-                ...game,
-                winner: getWinner(game)
-              };
+              if (gameIndex + 1 < prevRound.games.length) {
+                const team1 = prevRound.games[gameIndex].winner;
+                const team2 = prevRound.games[gameIndex + 1].winner;
+                
+                if (team1 && team2) {
+                  const game = {
+                    ...state.rounds[currentRound].games[currentGame],
+                    team1,
+                    team2
+                  };
+                  
+                  newState.rounds[currentRound].games[currentGame] = {
+                    ...game,
+                    winner: getWinner(game)
+                  };
+                }
+              }
+            }
+          } else if (round.position === 'center') {
+            if (round.name === 'Final Four') {
+              // Final Four gets winners from Elite Eight rounds
+              const leftEliteEight = state.rounds.find(r => r.name === 'Elite Eight (Left)');
+              const rightEliteEight = state.rounds.find(r => r.name === 'Elite Eight (Right)');
+              
+              if (leftEliteEight && rightEliteEight) {
+                if (currentGame === 0 && leftEliteEight.games[0].winner) {
+                  // First game in Final Four
+                  const team1 = leftEliteEight.games[0].winner;
+                  const team2 = leftEliteEight.games[1]?.winner || null;
+                  
+                  if (team1 && team2) {
+                    const game = {
+                      ...state.rounds[currentRound].games[currentGame],
+                      team1,
+                      team2
+                    };
+                    
+                    newState.rounds[currentRound].games[currentGame] = {
+                      ...game,
+                      winner: getWinner(game)
+                    };
+                  }
+                } else if (currentGame === 1 && rightEliteEight.games[0].winner) {
+                  // Second game in Final Four
+                  const team1 = rightEliteEight.games[0].winner;
+                  const team2 = rightEliteEight.games[1]?.winner || null;
+                  
+                  if (team1 && team2) {
+                    const game = {
+                      ...state.rounds[currentRound].games[currentGame],
+                      team1,
+                      team2
+                    };
+                    
+                    newState.rounds[currentRound].games[currentGame] = {
+                      ...game,
+                      winner: getWinner(game)
+                    };
+                  }
+                }
+              }
+            } else if (round.name === 'Championship') {
+              // Championship gets winners from Final Four
+              const finalFour = state.rounds.find(r => r.name === 'Final Four');
+              
+              if (finalFour && finalFour.games[0].winner && finalFour.games[1].winner) {
+                const team1 = finalFour.games[0].winner;
+                const team2 = finalFour.games[1].winner;
+                
+                const game = {
+                  ...state.rounds[currentRound].games[currentGame],
+                  team1,
+                  team2
+                };
+                
+                newState.rounds[currentRound].games[currentGame] = {
+                  ...game,
+                  winner: getWinner(game)
+                };
+              }
             }
           }
         }
@@ -190,10 +343,9 @@ const createBracketStore = () => {
     
     resetBracket: () => {
       update(state => {
-        // Reset all rounds except first round
+        // Reset all rounds except first rounds (left and right)
         const resetRounds = state.rounds.map((round, index) => {
-          if (index === 0) {
-            return {
+          if (index <= 1) return {
             ...round,
             games: round.games.map(game => ({
               ...game,
@@ -201,8 +353,7 @@ const createBracketStore = () => {
               team2: game.team2,
               winner: null
             }))
-          }; // Keep first round unchanged
-          }
+          }; // Keep first rounds unchanged
           
           return {
             ...round,
@@ -226,6 +377,13 @@ const createBracketStore = () => {
     }
   };
 };
+
+function getPreviousRoundName(roundName: string): string {
+  if (roundName.includes('Second Round')) return 'First Round';
+  if (roundName.includes('Sweet 16')) return 'Second Round';
+  if (roundName.includes('Elite Eight')) return 'Sweet 16';
+  return '';
+}
 
 function swapGames(games: Game[], index1: number, index2: number) {
   const temp = { ...games[index1] };
