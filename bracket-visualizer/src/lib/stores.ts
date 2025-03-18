@@ -189,11 +189,20 @@ const createBracketStore = () => {
         // For Final Four, both left and right sides feed into championship
         if ((round.name === 'Final Four (Left)' || round.name === 'Final Four (Right)') && 
             initialRounds[nextRoundIndex].name === 'Championship') {
-          nextGameIndex = 0;
+          nextGameIndex = 0; // Championship only has one game
         }
         
         // Determine if this will be team1 or team2 in the next game
-        const nextIsTeam1 = round.name === 'Final Four (Left)' || gameIndex % 2 === 0;
+        // Fixed logic: Left side always goes to team1, right side to team2 for championship
+        let nextIsTeam1: boolean;
+        
+        if (round.name === 'Final Four (Left)') {
+          nextIsTeam1 = true; // Always team1 for left side going to championship
+        } else if (round.name === 'Final Four (Right)') {
+          nextIsTeam1 = false; // Always team2 for right side going to championship
+        } else {
+          nextIsTeam1 = gameIndex % 2 === 0; // Standard alternating for other rounds
+        }
         
         game.nextGameIndex = nextGameIndex;
         game.nextIsTeam1 = nextIsTeam1;
@@ -353,6 +362,11 @@ const createBracketStore = () => {
                     ...nextGame,
                     team2: winner
                   };
+                }
+                
+                // Debug log for championship game
+                if (nextRound.name === 'Championship') {
+                  console.log(`Added ${winner.region} ${winner.seed} to ${currentGame.nextIsTeam1 ? 'team1' : 'team2'} in Championship`);
                 }
               }
             }

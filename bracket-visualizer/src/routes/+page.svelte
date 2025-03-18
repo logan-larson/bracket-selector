@@ -10,8 +10,8 @@
 
 <main>
   <header>
-    <h1>March Madness Bracket Visualizer</h1>
-    <p>Visualize your March Madness bracket and generate results.</p>
+    <h1>March Madness Bracket Randomizer</h1>
+    <p>Randomize your bracket and see how it plays out.</p>
   </header>
   
   <div class="bracket-section">
