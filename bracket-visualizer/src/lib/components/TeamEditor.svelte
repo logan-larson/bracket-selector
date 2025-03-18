@@ -109,7 +109,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: 600px;
+    max-height: 1000px;
     overflow-y: auto;
   }
   

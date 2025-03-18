@@ -40,7 +40,8 @@ const createBracketStore = () => {
     { name: 'Sweet 16 (Right)', games: [], position: 'right' },
     { name: 'Elite Eight (Left)', games: [], position: 'left' },
     { name: 'Elite Eight (Right)', games: [], position: 'right' },
-    { name: 'Final Four', games: [], position: 'center' },
+    { name: 'Final Four (Left)', games: [], position: 'left' },
+    { name: 'Final Four (Right)', games: [], position: 'right' },
     { name: 'Championship', games: [], position: 'center' }
   ];
 
@@ -137,6 +138,8 @@ const createBracketStore = () => {
       team2: null,
       winner: null
     },
+  ]
+  initialRounds[9].games = [
     {
       id: 'final-four-1',
       team1: null,
@@ -146,7 +149,7 @@ const createBracketStore = () => {
   ];
   
   // Championship (1 game)
-  initialRounds[9].games = [
+  initialRounds[10].games = [
     {
       id: 'championship',
       team1: null,
@@ -216,8 +219,7 @@ const createBracketStore = () => {
         const currentGame = state.currentGame;
         
         // Check if we've already completed the bracket
-        if (currentRound >= state.rounds.length - 1 && 
-            currentGame >= state.rounds[currentRound].games.length - 1) {
+        if (state.rounds[currentRound] == undefined || (currentRound >= state.rounds.length && currentGame >= state.rounds[currentRound].games.length - 1)) {
           return { ...state, isGenerating: false };
         }
         
@@ -306,11 +308,12 @@ const createBracketStore = () => {
               }
             } else if (round.name === 'Championship') {
               // Championship gets winners from Final Four
-              const finalFour = state.rounds.find(r => r.name === 'Final Four');
+              const finalFourLeft = state.rounds.find(r => r.name === 'Final Four (Left)');
+              const finalFourRight = state.rounds.find(r => r.name === 'Final Four (Right)');
               
-              if (finalFour && finalFour.games[0].winner && finalFour.games[1].winner) {
-                const team1 = finalFour.games[0].winner;
-                const team2 = finalFour.games[1].winner;
+              if (finalFourLeft && finalFourRight && finalFourLeft.games[0].winner && finalFourRight.games[0].winner) {
+                const team1 = finalFourLeft.games[0].winner;
+                const team2 = finalFourRight.games[0].winner;
                 
                 const game = {
                   ...state.rounds[currentRound].games[currentGame],
@@ -330,7 +333,7 @@ const createBracketStore = () => {
         // Advance to next game or round
         if (currentGame < state.rounds[currentRound].games.length - 1) {
           newState.currentGame = currentGame + 1;
-        } else if (currentRound < state.rounds.length - 1) {
+        } else if (currentRound < state.rounds.length) {
           newState.currentRound = currentRound + 1;
           newState.currentGame = 0;
         } else {

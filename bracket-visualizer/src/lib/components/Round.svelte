@@ -42,7 +42,7 @@
   .games {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    /* gap: 10px; */
   }
   
   /* Left side rounds */
@@ -57,32 +57,26 @@
   
   /* Adjust spacing for different rounds */
   :global(.round:nth-child(2) .games) {
-    padding-top: 24px;
+    padding-top: 55px;
+    gap: 103px;
   }
   
   :global(.round:nth-child(3) .games) {
-    padding-top: 70px;
-    gap: 83px;
+    padding-top: 160px;
+    gap: 308px;
   }
   
   :global(.round:nth-child(4) .games) {
-    padding-top: 177px;
-    gap: 209px;
+    padding-top: 370px;
+    gap: 730px;
+  }
+  
+  :global(.round:nth-child(5) .games) {
+    padding-top: 780px;
   }
   
   /* Championship */
   .center .games {
     justify-content: center;
-  }
-  
-  /* Final Four */
-  :global(.bracket-center > :first-child .games) {
-    padding-top: 160px;
-    gap: 260px;
-  }
-  
-  /* Championship */
-  :global(.bracket-center > :last-child .games) {
-    padding-top: 290px;
   }
 </style> 
