@@ -48,11 +48,26 @@
   $: rightRounds = $bracketStore.rounds.filter(round => round.position === 'right');
   $: centerRounds = $bracketStore.rounds.filter(round => round.position === 'center');
   
+  // Get championship info
+  $: championship = centerRounds.find(r => r.name === 'Championship');
+  $: champion = championship?.games[0]?.winner;
+  
   // Convert speed value to descriptive text
   $: speedLabel = generationSpeed <= 100 ? 'Very Fast' : 
                   generationSpeed <= 250 ? 'Fast' : 
                   generationSpeed <= 500 ? 'Medium' :
                   generationSpeed <= 750 ? 'Slow' : 'Very Slow';
+  
+  // Count games completed and remaining
+  $: completedGames = $bracketStore.rounds.reduce((acc, round) => {
+    return acc + round.games.filter(game => game.winner !== null).length;
+  }, 0);
+  
+  $: totalPossibleGames = $bracketStore.rounds.reduce((acc, round) => {
+    return acc + round.games.length;
+  }, 0);
+  
+  $: pendingCount = $bracketStore.pendingGames ? $bracketStore.pendingGames.length : 0;
 </script>
 
 <div class="bracket-container">
@@ -80,7 +95,7 @@
     {#if $bracketStore.isGenerating}
       <div class="generation-status">
         <div class="progress-indicator"></div>
-        <span>Generating Round: {$bracketStore.rounds[$bracketStore.currentRound]?.name || ''}</span>
+        <span>Generating: {completedGames} games complete • {pendingCount} pending</span>
       </div>
     {/if}
   </div>
@@ -99,7 +114,7 @@
       {/each}
     </div>
     
-    <!-- Center rounds (Final Four & Championship) -->
+    <!-- Center rounds (Championship) -->
     <div class="bracket-center">
       {#each centerRounds as round, i}
         {@const roundIndex = $bracketStore.rounds.findIndex(r => r.name === round.name)}
@@ -125,6 +140,22 @@
       {/each}
     </div>
   </div>
+  
+  {#if !$bracketStore.isGenerating && completedGames > 0 && champion}
+    <div class="champion-banner">
+      <div class="champion">
+        <h2>🏆 CHAMPION 🏆</h2>
+        <div class="champion-name">
+          {champion.name || `${champion.region} ${champion.seed}`}
+        </div>
+        {#if champion.image}
+          <div class="champion-image">
+            <img src={champion.image} alt="Champion" />
+          </div>
+        {/if}
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -223,5 +254,50 @@
     align-items: center;
     padding: 0 10px;
     min-width: 220px;
+  }
+  
+  .champion-banner {
+    background-color: var(--highlight-color);
+    padding: 16px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    animation: fadeIn 1s ease-in;
+  }
+  
+  .champion {
+    color: var(--primary-color);
+  }
+  
+  .champion h2 {
+    font-size: 24px;
+    margin-bottom: 8px;
+    color: #003b8e;
+  }
+  
+  .champion-name {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  
+  .champion-image {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 4px solid var(--primary-color);
+  }
+  
+  .champion-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 </style> 

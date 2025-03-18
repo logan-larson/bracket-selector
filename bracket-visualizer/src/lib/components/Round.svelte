@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Round as RoundType } from '../stores';
   import Game from './Game.svelte';
+  import { bracketStore } from '../stores';
   
   export let round: RoundType;
   export let isCurrentRound: boolean = false;
@@ -8,6 +9,13 @@
   export let side: 'left' | 'right' | 'center' = 'left';
   
   $: roundName = round.name.replace(/ \(Left\)| \(Right\)/g, '');
+  
+  $: activeGameInfo = $bracketStore.activeGameInfo || { roundIndex: -1, gameIndex: -1 };
+  $: roundIndex = $bracketStore.rounds.findIndex(r => r.name === round.name);
+  
+  function isGameActive(gameIndex: number): boolean {
+    return roundIndex === activeGameInfo.roundIndex && gameIndex === activeGameInfo.gameIndex;
+  }
 </script>
 
 <div class="round" class:left={side === 'left'} class:right={side === 'right'} class:center={side === 'center'}>
@@ -17,7 +25,7 @@
       <Game 
         {game} 
         isAnimating={isCurrentRound && index === currentGameIndex && game.winner !== null}
-        isActive={isCurrentRound && index === currentGameIndex}
+        isActive={isGameActive(index)}
         {side}
       />
     {/each}

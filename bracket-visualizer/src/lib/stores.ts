@@ -12,6 +12,8 @@ export interface Game {
   team1: Team | null;
   team2: Team | null;
   winner: Team | null;
+  nextGameIndex?: number; // Index of the game this feeds into in the next round
+  nextIsTeam1?: boolean; // Whether this winner becomes team1 in the next game
 }
 
 export interface Round {
@@ -45,6 +47,20 @@ const createBracketStore = () => {
     { name: 'Championship', games: [], position: 'center' }
   ];
 
+  // Find the index of the round
+  const getNextRoundIndex = (currentRoundIndex: number, position: 'left' | 'right' | 'center'): number => {
+    for (let i = currentRoundIndex + 1; i < initialRounds.length; i++) {
+      if (initialRounds[i].position === position) return i;
+    }
+    // If no matching position is found, check for center position (championship)
+    if (position !== 'center') {
+      for (let i = currentRoundIndex + 1; i < initialRounds.length; i++) {
+        if (initialRounds[i].position === 'center') return i;
+      }
+    }
+    return -1;
+  };
+  
   // Set up first round games - left side (first two regions)
   const leftRegions = [teams.filter(t => t.region === regions[0]), teams.filter(t => t.region === regions[1])];
   let gameId = 0;
@@ -54,11 +70,17 @@ const createBracketStore = () => {
       const team1 = regionTeams[i];
       const team2 = regionTeams[15 - i];
       
+      // Calculate which game in the next round this feeds into
+      const nextGameIndex = Math.floor(i / 2);
+      const nextIsTeam1 = i % 2 === 0;
+      
       initialRounds[0].games.push({
         id: `first-left-${gameId}`,
         team1,
         team2,
-        winner: null
+        winner: null,
+        nextGameIndex,
+        nextIsTeam1
       });
       gameId++;
     }
@@ -81,11 +103,17 @@ const createBracketStore = () => {
       const team1 = regionTeams[i];
       const team2 = regionTeams[15 - i];
       
+      // Calculate which game in the next round this feeds into
+      const nextGameIndex = Math.floor(i / 2);
+      const nextIsTeam1 = i % 2 === 0;
+      
       initialRounds[1].games.push({
         id: `first-right-${gameId}`,
         team1,
         team2,
-        winner: null
+        winner: null,
+        nextGameIndex,
+        nextIsTeam1
       });
       gameId++;
     }
@@ -100,53 +128,18 @@ const createBracketStore = () => {
   }
   
   // Setup empty games for later rounds
-  // Left side (Second Round, Sweet 16, Elite Eight)
-  for (let round = 2; round <= 6; round += 2) {
-    const prevGamesCount = initialRounds[round-2].games.length;
-    const gamesCount = prevGamesCount / 2;
-    
-    for (let i = 0; i < gamesCount; i++) {
-      initialRounds[round].games.push({
-        id: `${initialRounds[round].name.toLowerCase().replace(/\s/g, '-')}-${i}`,
-        team1: null,
-        team2: null,
-        winner: null
-      });
-    }
-  }
+  // Left side (Second Round, Sweet 16, Elite Eight, Final Four)
+  // Each round should have half as many games as the previous round
+  initialRounds[2].games = createGames('second-round-left', 8);
+  initialRounds[4].games = createGames('sweet-16-left', 4);
+  initialRounds[6].games = createGames('elite-eight-left', 2);
+  initialRounds[8].games = createGames('final-four-left', 1);
   
-  // Right side (Second Round, Sweet 16, Elite Eight)
-  for (let round = 3; round <= 7; round += 2) {
-    const prevGamesCount = initialRounds[round-2].games.length;
-    const gamesCount = prevGamesCount / 2;
-    
-    for (let i = 0; i < gamesCount; i++) {
-      initialRounds[round].games.push({
-        id: `${initialRounds[round].name.toLowerCase().replace(/\s/g, '-')}-${i}`,
-        team1: null,
-        team2: null,
-        winner: null
-      });
-    }
-  }
-  
-  // Final Four (2 games)
-  initialRounds[8].games = [
-    {
-      id: 'final-four-0',
-      team1: null,
-      team2: null,
-      winner: null
-    },
-  ]
-  initialRounds[9].games = [
-    {
-      id: 'final-four-1',
-      team1: null,
-      team2: null,
-      winner: null
-    }
-  ];
+  // Right side (Second Round, Sweet 16, Elite Eight, Final Four)
+  initialRounds[3].games = createGames('second-round-right', 8);
+  initialRounds[5].games = createGames('sweet-16-right', 4);
+  initialRounds[7].games = createGames('elite-eight-right', 2);
+  initialRounds[9].games = createGames('final-four-right', 1);
   
   // Championship (1 game)
   initialRounds[10].games = [
@@ -158,15 +151,80 @@ const createBracketStore = () => {
     }
   ];
   
+  // Helper function to create games with the correct count
+  function createGames(idPrefix: string, count: number): Game[] {
+    const games: Game[] = [];
+    for (let i = 0; i < count; i++) {
+      games.push({
+        id: `${idPrefix}-${i}`,
+        team1: null,
+        team2: null,
+        winner: null
+      });
+    }
+    return games;
+  }
+  
+  // Set up advancement paths from first round to second round
+  initialRounds[0].games.forEach((game, gameIndex) => {
+    game.nextGameIndex = Math.floor(gameIndex / 2);
+    game.nextIsTeam1 = gameIndex % 2 === 0;
+  });
+  
+  initialRounds[1].games.forEach((game, gameIndex) => {
+    game.nextGameIndex = Math.floor(gameIndex / 2);
+    game.nextIsTeam1 = gameIndex % 2 === 0;
+  });
+  
+  // Set up advancement paths for all other rounds
+  for (let roundIndex = 2; roundIndex < initialRounds.length - 1; roundIndex++) {
+    const round = initialRounds[roundIndex];
+    const nextRoundIndex = getNextRoundIndex(roundIndex, round.position);
+    
+    if (nextRoundIndex !== -1) {
+      round.games.forEach((game, gameIndex) => {
+        // Calculate which game in the next round this feeds into
+        let nextGameIndex = Math.floor(gameIndex / 2);
+        
+        // For Final Four, both left and right sides feed into championship
+        if ((round.name === 'Final Four (Left)' || round.name === 'Final Four (Right)') && 
+            initialRounds[nextRoundIndex].name === 'Championship') {
+          nextGameIndex = 0;
+        }
+        
+        // Determine if this will be team1 or team2 in the next game
+        const nextIsTeam1 = round.name === 'Final Four (Left)' || gameIndex % 2 === 0;
+        
+        game.nextGameIndex = nextGameIndex;
+        game.nextIsTeam1 = nextIsTeam1;
+      });
+    }
+  }
+  
   const { subscribe, update } = writable({
     rounds: initialRounds,
     allTeams: teams,
     isGenerating: false,
     currentRound: 0,
     currentGame: 0,
-    pendingGameIndices: [] as number[], // Tracks which games still need to be played in current round
-    activeGameIndex: -1 // Currently active game being decided
+    pendingGames: [] as { roundIndex: number, gameIndex: number }[],
+    activeGameInfo: { roundIndex: -1, gameIndex: -1 }
   });
+  
+  // Find all games that have both teams assigned but no winner yet
+  const findPlayableGames = (rounds: Round[]): { roundIndex: number, gameIndex: number }[] => {
+    const playableGames: { roundIndex: number, gameIndex: number }[] = [];
+    
+    rounds.forEach((round, roundIndex) => {
+      round.games.forEach((game, gameIndex) => {
+        if (game.team1 && game.team2 && !game.winner) {
+          playableGames.push({ roundIndex, gameIndex });
+        }
+      });
+    });
+    
+    return playableGames;
+  };
   
   return {
     subscribe,
@@ -208,21 +266,25 @@ const createBracketStore = () => {
     
     generateBracket: () => {
       update(state => {
-        // Initialize with all games in first round as pending
-        const pendingGameIndices = Array.from({ length: state.rounds[0].games.length }, (_, i) => i);
-        // Shuffle the order
-        shuffleArray(pendingGameIndices);
+        // Find all the playable games in the first round (which should be all games)
+        const firstRoundGames = [
+          ...state.rounds[0].games.map((_, i) => ({ roundIndex: 0, gameIndex: i })),
+          ...state.rounds[1].games.map((_, i) => ({ roundIndex: 1, gameIndex: i }))
+        ];
         
-        // Pick the first game to process
-        const activeGameIndex = pendingGameIndices.pop() || 0;
+        // Shuffle the order of games
+        shuffleArray(firstRoundGames);
+        
+        // Pick the first game to play
+        const activeGame = firstRoundGames.pop() || { roundIndex: 0, gameIndex: 0 };
         
         return { 
           ...state, 
-          isGenerating: true, 
-          currentRound: 0, 
-          currentGame: activeGameIndex,
-          pendingGameIndices,
-          activeGameIndex
+          isGenerating: true,
+          pendingGames: firstRoundGames,
+          activeGameInfo: activeGame,
+          currentRound: activeGame.roundIndex,
+          currentGame: activeGame.gameIndex
         };
       });
     },
@@ -232,113 +294,98 @@ const createBracketStore = () => {
         if (!state.isGenerating) return state;
         
         let newState = { ...state };
-        const currentRound = state.currentRound;
-        const currentGame = state.activeGameIndex;
+        const { roundIndex, gameIndex } = state.activeGameInfo;
         
         // Check if the current round exists
-        if (!state.rounds[currentRound]) {
+        if (roundIndex < 0 || roundIndex >= state.rounds.length) {
           return { ...state, isGenerating: false };
         }
         
-        // Process the current game
-        if (currentRound <= 1) { // First rounds (left and right)
-          // First round games already have teams assigned, just determine winner
-          const game = state.rounds[currentRound].games[currentGame];
-          newState.rounds[currentRound].games[currentGame] = {
-            ...game, 
-            winner: getWinner(game)
-          };
-        } else {
-          // For later rounds, we need to get teams from previous round winners
-          const round = state.rounds[currentRound];
+        const currentRound = state.rounds[roundIndex];
+        const currentGame = currentRound.games[gameIndex];
+        
+        if (!currentGame) {
+          return { ...state, isGenerating: false };
+        }
+        
+        // Determine winner for this game
+        if (currentGame.team1 && currentGame.team2 && !currentGame.winner) {
+          const winner = getWinner(currentGame);
           
-          if (round.position === 'left' || round.position === 'right') {
-            // Find the correct previous round
-            const prevRound = state.rounds.find(r => 
-              r.position === round.position && 
-              r.name.includes(getPreviousRoundName(round.name))
-            );
+          // Update the winner
+          newState.rounds[roundIndex].games[gameIndex] = {
+            ...currentGame,
+            winner
+          };
+          
+          // Find the next round and advance the winner
+          if (typeof currentGame.nextGameIndex === 'number' && roundIndex < state.rounds.length - 1) {
+            // Find the next round with the same position
+            let nextRoundIndex = -1;
             
-            if (prevRound) {
-              // For randomized order, we need to map the game indices correctly
-              // The activeGameIndex is the randomized index in the current round
-              const gameIdx = currentGame;
+            if (currentRound.name === 'Final Four (Left)' || currentRound.name === 'Final Four (Right)') {
+              // Final Four feeds into Championship
+              nextRoundIndex = state.rounds.findIndex(r => r.name === 'Championship');
+            } else {
+              for (let i = roundIndex + 1; i < state.rounds.length; i++) {
+                if (state.rounds[i].position === currentRound.position) {
+                  nextRoundIndex = i;
+                  break;
+                }
+              }
+            }
+            
+            if (nextRoundIndex !== -1 && winner) {
+              const nextRound = state.rounds[nextRoundIndex];
+              const nextGameIndex = currentGame.nextGameIndex;
               
-              // Calculate which two games from the previous round feed into this game
-              const prevGameIdx1 = gameIdx * 2;
-              const prevGameIdx2 = gameIdx * 2 + 1;
-              
-              if (prevGameIdx2 < prevRound.games.length) {
-                const team1 = prevRound.games[prevGameIdx1].winner;
-                const team2 = prevRound.games[prevGameIdx2].winner;
+              if (nextGameIndex < nextRound.games.length) {
+                const nextGame = nextRound.games[nextGameIndex];
                 
-                if (team1 && team2) {
-                  const game = {
-                    ...state.rounds[currentRound].games[gameIdx],
-                    team1,
-                    team2
+                // Place winner in the correct position (team1 or team2)
+                if (currentGame.nextIsTeam1) {
+                  newState.rounds[nextRoundIndex].games[nextGameIndex] = {
+                    ...nextGame,
+                    team1: winner
                   };
-                  
-                  newState.rounds[currentRound].games[gameIdx] = {
-                    ...game,
-                    winner: getWinner(game)
+                } else {
+                  newState.rounds[nextRoundIndex].games[nextGameIndex] = {
+                    ...nextGame,
+                    team2: winner
                   };
                 }
               }
             }
-          } else if (round.position === 'center') {
-            if (round.name === 'Championship') {
-              // Championship gets winners from Final Four
-              const finalFourLeft = state.rounds.find(r => r.name === 'Final Four (Left)');
-              const finalFourRight = state.rounds.find(r => r.name === 'Final Four (Right)');
-              
-              if (finalFourLeft && finalFourRight && finalFourLeft.games[0].winner && finalFourRight.games[0].winner) {
-                const team1 = finalFourLeft.games[0].winner;
-                const team2 = finalFourRight.games[0].winner;
-                
-                const game = {
-                  ...state.rounds[currentRound].games[currentGame],
-                  team1,
-                  team2
-                };
-                
-                newState.rounds[currentRound].games[currentGame] = {
-                  ...game,
-                  winner: getWinner(game)
-                };
-              }
-            }
           }
         }
         
-        // Check if we have more games in this round
-        if (state.pendingGameIndices.length > 0) {
-          // Pick the next game randomly from the remaining games
-          const activeGameIndex = state.pendingGameIndices.pop() || 0;
-          newState.activeGameIndex = activeGameIndex;
-          newState.currentGame = activeGameIndex; // For UI display purposes
+        // Find the next playable game
+        if (state.pendingGames.length > 0) {
+          // Take the next game from the pending list
+          const nextGame = state.pendingGames.pop() || { roundIndex: 0, gameIndex: 0 };
+          newState.activeGameInfo = nextGame;
+          newState.currentRound = nextGame.roundIndex;
+          newState.currentGame = nextGame.gameIndex;
         } else {
-          // Move to next round
-          const nextRound = currentRound + 1;
+          // Find any new games that are now playable (have both teams assigned)
+          const playableGames = findPlayableGames(newState.rounds);
           
-          // Check if we've completed all rounds
-          if (nextRound >= state.rounds.length) {
-            return { ...state, isGenerating: false };
+          if (playableGames.length > 0) {
+            // Shuffle the new playable games
+            shuffleArray(playableGames);
+            
+            // Pop the first one to be the active game
+            const nextGame = playableGames.pop() || { roundIndex: 0, gameIndex: 0 };
+            
+            newState.pendingGames = playableGames;
+            newState.activeGameInfo = nextGame;
+            newState.currentRound = nextGame.roundIndex;
+            newState.currentGame = nextGame.gameIndex;
+          } else {
+            // No more games to play - we're done!
+            newState.isGenerating = false;
+            newState.activeGameInfo = { roundIndex: -1, gameIndex: -1 };
           }
-          
-          // Initialize next round with all games
-          const nextRoundGames = state.rounds[nextRound].games;
-          const pendingGameIndices = Array.from({ length: nextRoundGames.length }, (_, i) => i);
-          // Shuffle the order
-          shuffleArray(pendingGameIndices);
-          
-          // Pick the first game to process
-          const activeGameIndex = pendingGameIndices.pop() || 0;
-          
-          newState.currentRound = nextRound;
-          newState.pendingGameIndices = pendingGameIndices;
-          newState.activeGameIndex = activeGameIndex;
-          newState.currentGame = activeGameIndex; // For UI display
         }
         
         return newState;
@@ -347,17 +394,15 @@ const createBracketStore = () => {
     
     resetBracket: () => {
       update(state => {
-        // Reset all rounds except first rounds (left and right)
+        // Reset all rounds
         const resetRounds = state.rounds.map((round, index) => {
           if (index <= 1) return {
             ...round,
             games: round.games.map(game => ({
               ...game,
-              team1: game.team1,
-              team2: game.team2,
               winner: null
             }))
-          }; // Keep first rounds unchanged
+          }; // Keep first rounds unchanged except for winners
           
           return {
             ...round,
@@ -376,8 +421,8 @@ const createBracketStore = () => {
           isGenerating: false,
           currentRound: 0,
           currentGame: 0,
-          pendingGameIndices: [],
-          activeGameIndex: -1
+          pendingGames: [],
+          activeGameInfo: { roundIndex: -1, gameIndex: -1 }
         };
       });
     }
@@ -385,7 +430,7 @@ const createBracketStore = () => {
 };
 
 // Fisher-Yates shuffle algorithm to randomize game order
-function shuffleArray(array: number[]): void {
+function shuffleArray<T>(array: T[]): void {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [array[i], array[j]] = [array[j], array[i]];
