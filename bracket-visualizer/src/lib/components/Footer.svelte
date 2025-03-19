@@ -5,7 +5,7 @@
 
 <footer class="footer">
   <div class="footer-content">
-    <p>© {currentYear} March Madness Bracket Visualizer</p>
+    <p>© {currentYear} March Madness Bracket Randomizer</p>
     <p class="credit">Vibe coded by <a href="https://loganlarson.caffeinatedstudios.dev" class="name">Logan Larson</a> and <a href="https://www.anthropic.com/claude" class="name">Claude</a></p>
   </div>
 </footer>

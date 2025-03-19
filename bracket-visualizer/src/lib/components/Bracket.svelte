@@ -71,90 +71,97 @@
 </script>
 
 <div class="bracket-container">
-  <div class="controls">
-    <button on:click={startGeneration} disabled={$bracketStore.isGenerating}>
-      Generate Bracket
-    </button>
-    <button on:click={resetBracket} disabled={$bracketStore.isGenerating}>
-      Reset
-    </button>
-    <div class="speed-control">
-      <label for="speed">Speed:</label>
-      <input 
-        type="range" 
-        id="speed" 
-        min="100" 
-        max="1000" 
-        step="50" 
-        bind:value={generationSpeed}
-        disabled={$bracketStore.isGenerating}
-      />
-      <span class="speed-label">{speedLabel}</span>
+  {#if $bracketStore.isLoading}
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Loading team data...</p>
+    </div>
+  {:else}
+    <div class="controls">
+      <button on:click={startGeneration} disabled={$bracketStore.isGenerating}>
+        Generate Bracket
+      </button>
+      <button on:click={resetBracket} disabled={$bracketStore.isGenerating}>
+        Reset
+      </button>
+      <div class="speed-control">
+        <label for="speed">Speed:</label>
+        <input 
+          type="range" 
+          id="speed" 
+          min="100" 
+          max="1000" 
+          step="50" 
+          bind:value={generationSpeed}
+          disabled={$bracketStore.isGenerating}
+        />
+        <span class="speed-label">{speedLabel}</span>
+      </div>
+      
+      {#if $bracketStore.isGenerating}
+        <div class="generation-status">
+          <div class="progress-indicator"></div>
+          <span>Generating: {completedGames} games complete • {pendingCount} pending</span>
+        </div>
+      {/if}
+    </div>
+  
+    <div class="bracket">
+      <!-- Left side rounds -->
+      <div class="bracket-side left-side">
+        {#each leftRounds as round, i}
+          {@const roundIndex = $bracketStore.rounds.findIndex(r => r.name === round.name)}
+          <Round 
+            {round} 
+            isCurrentRound={roundIndex === $bracketStore.currentRound}
+            currentGameIndex={$bracketStore.currentGame}
+            side="left"
+          />
+        {/each}
+      </div>
+      
+      <!-- Center rounds (Championship) -->
+      <div class="bracket-center">
+        {#each centerRounds as round, i}
+          {@const roundIndex = $bracketStore.rounds.findIndex(r => r.name === round.name)}
+          <Round 
+            {round} 
+            isCurrentRound={roundIndex === $bracketStore.currentRound}
+            currentGameIndex={$bracketStore.currentGame}
+            side="center"
+          />
+        {/each}
+      </div>
+      
+      <!-- Right side rounds -->
+      <div class="bracket-side right-side">
+        {#each rightRounds as round, i}
+          {@const roundIndex = $bracketStore.rounds.findIndex(r => r.name === round.name)}
+          <Round 
+            {round} 
+            isCurrentRound={roundIndex === $bracketStore.currentRound}
+            currentGameIndex={$bracketStore.currentGame}
+            side="right"
+          />
+        {/each}
+      </div>
     </div>
     
-    {#if $bracketStore.isGenerating}
-      <div class="generation-status">
-        <div class="progress-indicator"></div>
-        <span>Generating: {completedGames} games complete • {pendingCount} pending</span>
+    {#if !$bracketStore.isGenerating && completedGames > 0 && champion}
+      <div class="champion-banner">
+        <div class="champion">
+          <h2>🏆 CHAMPION 🏆</h2>
+          <div class="champion-name">
+            {champion.name || `${champion.region} ${champion.seed}`}
+          </div>
+          {#if champion.image}
+            <div class="champion-image">
+              <img src={champion.image} alt="Champion" />
+            </div>
+          {/if}
+        </div>
       </div>
     {/if}
-  </div>
-  
-  <div class="bracket">
-    <!-- Left side rounds -->
-    <div class="bracket-side left-side">
-      {#each leftRounds as round, i}
-        {@const roundIndex = $bracketStore.rounds.findIndex(r => r.name === round.name)}
-        <Round 
-          {round} 
-          isCurrentRound={roundIndex === $bracketStore.currentRound}
-          currentGameIndex={$bracketStore.currentGame}
-          side="left"
-        />
-      {/each}
-    </div>
-    
-    <!-- Center rounds (Championship) -->
-    <div class="bracket-center">
-      {#each centerRounds as round, i}
-        {@const roundIndex = $bracketStore.rounds.findIndex(r => r.name === round.name)}
-        <Round 
-          {round} 
-          isCurrentRound={roundIndex === $bracketStore.currentRound}
-          currentGameIndex={$bracketStore.currentGame}
-          side="center"
-        />
-      {/each}
-    </div>
-    
-    <!-- Right side rounds -->
-    <div class="bracket-side right-side">
-      {#each rightRounds as round, i}
-        {@const roundIndex = $bracketStore.rounds.findIndex(r => r.name === round.name)}
-        <Round 
-          {round} 
-          isCurrentRound={roundIndex === $bracketStore.currentRound}
-          currentGameIndex={$bracketStore.currentGame}
-          side="right"
-        />
-      {/each}
-    </div>
-  </div>
-  
-  {#if !$bracketStore.isGenerating && completedGames > 0 && champion}
-    <div class="champion-banner">
-      <div class="champion">
-        <h2>🏆 CHAMPION 🏆</h2>
-        <div class="champion-name">
-          {champion.name || `${champion.region} ${champion.seed}`}
-        </div>
-        {#if champion.image}
-          <div class="champion-image">
-            <img src={champion.image} alt="Champion" />
-          </div>
-        {/if}
-      </div>
-    </div>
   {/if}
 </div>
 
@@ -165,6 +172,31 @@
     gap: 20px;
     max-width: 100%;
     overflow-x: auto;
+  }
+  
+  .loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(0, 71, 171, 0.1);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s ease-in-out infinite;
+    margin-bottom: 16px;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
   
   .controls {

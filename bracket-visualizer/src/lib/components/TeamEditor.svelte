@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { bracketStore, type Team } from '../stores';
+  import { bracketStore } from '../stores';
+  import type { Team } from '../types';
   
   export let teams: Team[] = [];
-  let selectedRegion = 'All';
+  let selectedRegion = 'East';
   let expandedTeam: number | null = null;
   
-  const regions = ['All', 'East', 'West', 'South', 'Midwest'];
+  const regions = ['East', 'West', 'South', 'Midwest'];
   
   function toggleTeam(index: number) {
     expandedTeam = expandedTeam === index ? null : index;

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Team } from '../stores';
+  import type { Team } from '../types';
   
   export let team: Team | null = null;
   export let winner: boolean = false;

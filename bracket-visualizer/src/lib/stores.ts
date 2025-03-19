@@ -1,11 +1,5 @@
 import { writable } from 'svelte/store';
-
-export interface Team {
-  region: string;
-  seed: number;
-  name?: string;
-  image?: string;
-}
+import type { Team } from './types';
 
 export interface Game {
   id: string;
@@ -22,8 +16,42 @@ export interface Round {
   position: 'left' | 'right' | 'center';
 }
 
-// Local storage keys
-const TEAM_DATA_KEY = 'bracket-visualizer-team-data';
+// Function to fetch team data from the API
+async function fetchTeamData(): Promise<Team[]> {
+  try {
+    const response = await fetch('/api/teams');
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data.teams || [];
+  } catch (error) {
+    console.error('Error fetching team data:', error);
+    return [];
+  }
+}
+
+// Function to save team data to the API
+async function saveTeamData(teamsToSave: Team[]): Promise<boolean> {
+  try {
+    const response = await fetch('/api/teams', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ teams: teamsToSave }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error saving team data:', error);
+    return false;
+  }
+}
 
 const createBracketStore = () => {
   const regions = ["South", "West", "East", "Midwest"];
@@ -34,28 +62,6 @@ const createBracketStore = () => {
       teams.push({ region, seed: i });
     }
   });
-  
-  // Load saved team data from localStorage if available
-  try {
-    const savedTeamData = localStorage.getItem(TEAM_DATA_KEY);
-    if (savedTeamData) {
-      const savedTeams = JSON.parse(savedTeamData);
-      
-      // Update teams with saved data
-      savedTeams.forEach((savedTeam: Team) => {
-        const matchingTeam = teams.find(t => 
-          t.region === savedTeam.region && t.seed === savedTeam.seed
-        );
-        
-        if (matchingTeam) {
-          matchingTeam.name = savedTeam.name;
-          matchingTeam.image = savedTeam.image;
-        }
-      });
-    }
-  } catch (error) {
-    console.error('Error loading team data from localStorage:', error);
-  }
   
   // Initialize rounds with empty games
   const initialRounds: Round[] = [
@@ -242,7 +248,8 @@ const createBracketStore = () => {
     currentRound: 0,
     currentGame: 0,
     pendingGames: [] as { roundIndex: number, gameIndex: number }[],
-    activeGameInfo: { roundIndex: -1, gameIndex: -1 }
+    activeGameInfo: { roundIndex: -1, gameIndex: -1 },
+    isLoading: true // Add loading state for API
   });
   
   // Find all games that have both teams assigned but no winner yet
@@ -260,16 +267,76 @@ const createBracketStore = () => {
     return playableGames;
   };
 
-  // Helper function to save teams to localStorage
-  const saveTeamsToLocalStorage = (teams: Team[]) => {
-    try {
-      // Only save teams that have custom data (name or image)
-      const teamsToSave = teams.filter(team => team.name || team.image);
-      localStorage.setItem(TEAM_DATA_KEY, JSON.stringify(teamsToSave));
-    } catch (error) {
-      console.error('Error saving team data to localStorage:', error);
+  // Initial load from API
+  (async () => {
+    const savedTeams = await fetchTeamData();
+    
+    if (savedTeams.length > 0) {
+      update(state => {
+        const updatedTeams = [...state.allTeams];
+        
+        // Update teams with saved data
+        savedTeams.forEach(savedTeam => {
+          const matchingTeam = updatedTeams.find(t => 
+            t.region === savedTeam.region && t.seed === savedTeam.seed
+          );
+          
+          if (matchingTeam) {
+            matchingTeam.name = savedTeam.name;
+            matchingTeam.image = savedTeam.image;
+          }
+        });
+        
+        // Also update teams in any existing games
+        const updatedRounds = state.rounds.map(round => {
+          return {
+            ...round,
+            games: round.games.map(game => {
+              let updatedGame = { ...game };
+              
+              if (game.team1) {
+                const savedTeam = savedTeams.find(
+                  t => t.region === game.team1?.region && t.seed === game.team1?.seed
+                );
+                if (savedTeam) {
+                  updatedGame.team1 = { ...game.team1, ...savedTeam };
+                }
+              }
+              
+              if (game.team2) {
+                const savedTeam = savedTeams.find(
+                  t => t.region === game.team2?.region && t.seed === game.team2?.seed
+                );
+                if (savedTeam) {
+                  updatedGame.team2 = { ...game.team2, ...savedTeam };
+                }
+              }
+              
+              if (game.winner) {
+                const savedTeam = savedTeams.find(
+                  t => t.region === game.winner?.region && t.seed === game.winner?.seed
+                );
+                if (savedTeam) {
+                  updatedGame.winner = { ...game.winner, ...savedTeam };
+                }
+              }
+              
+              return updatedGame;
+            })
+          };
+        });
+        
+        return { 
+          ...state, 
+          allTeams: updatedTeams, 
+          rounds: updatedRounds,
+          isLoading: false 
+        };
+      });
+    } else {
+      update(state => ({ ...state, isLoading: false }));
     }
-  };
+  })();
   
   return {
     subscribe,
@@ -305,8 +372,9 @@ const createBracketStore = () => {
           };
         });
 
-        // Save to localStorage
-        saveTeamsToLocalStorage(updatedTeams);
+        // Save to API
+        const teamsToSave = updatedTeams.filter(team => team.name || team.image);
+        saveTeamData(teamsToSave);
         
         return { ...state, allTeams: updatedTeams, rounds: updatedRounds };
       });
