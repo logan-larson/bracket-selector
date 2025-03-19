@@ -9,8 +9,12 @@
 </svelte:head>
 
 <main>
-  <header>
-    <h1>March Madness Bracket Randomizer</h1>
+  <header style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+        <img src="/bb.png" alt="March Madness Bracket Randomizer" style="width: 50px; height: 50px; transform: rotate(90deg);" />
+        <h1>March Madness Bracket Randomizer</h1>
+        <img src="/bb.png" alt="March Madness Bracket Randomizer" style="width: 50px; height: 50px; transform: scaleX(-1) rotate(90deg);" />
+    </div>
     <p>Randomize your bracket and see how it plays out.</p>
   </header>
   
