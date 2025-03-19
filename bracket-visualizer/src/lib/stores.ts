@@ -22,6 +22,9 @@ export interface Round {
   position: 'left' | 'right' | 'center';
 }
 
+// Local storage keys
+const TEAM_DATA_KEY = 'bracket-visualizer-team-data';
+
 const createBracketStore = () => {
   const regions = ["South", "West", "East", "Midwest"];
   const teams: Team[] = [];
@@ -31,6 +34,28 @@ const createBracketStore = () => {
       teams.push({ region, seed: i });
     }
   });
+  
+  // Load saved team data from localStorage if available
+  try {
+    const savedTeamData = localStorage.getItem(TEAM_DATA_KEY);
+    if (savedTeamData) {
+      const savedTeams = JSON.parse(savedTeamData);
+      
+      // Update teams with saved data
+      savedTeams.forEach((savedTeam: Team) => {
+        const matchingTeam = teams.find(t => 
+          t.region === savedTeam.region && t.seed === savedTeam.seed
+        );
+        
+        if (matchingTeam) {
+          matchingTeam.name = savedTeam.name;
+          matchingTeam.image = savedTeam.image;
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error loading team data from localStorage:', error);
+  }
   
   // Initialize rounds with empty games
   const initialRounds: Round[] = [
@@ -234,6 +259,17 @@ const createBracketStore = () => {
     
     return playableGames;
   };
+
+  // Helper function to save teams to localStorage
+  const saveTeamsToLocalStorage = (teams: Team[]) => {
+    try {
+      // Only save teams that have custom data (name or image)
+      const teamsToSave = teams.filter(team => team.name || team.image);
+      localStorage.setItem(TEAM_DATA_KEY, JSON.stringify(teamsToSave));
+    } catch (error) {
+      console.error('Error saving team data to localStorage:', error);
+    }
+  };
   
   return {
     subscribe,
@@ -268,6 +304,9 @@ const createBracketStore = () => {
             })
           };
         });
+
+        // Save to localStorage
+        saveTeamsToLocalStorage(updatedTeams);
         
         return { ...state, allTeams: updatedTeams, rounds: updatedRounds };
       });
